@@ -9,4 +9,6 @@ public interface OwnerRepository {
     Owner save(Owner owner);
 
     Optional<Owner> findById(String id);
+
+    Optional<Owner> findByUserId(String userId);
 }

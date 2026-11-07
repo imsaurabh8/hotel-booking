@@ -22,6 +22,10 @@ public class InMemoryBookingRepository implements BookingRepository {
         return Optional.ofNullable(bookings.get(id));
     }
 
+    public List<Booking> findByUserId(String userId) {
+        return bookings.values().stream().filter(b -> b.getUserId().equals(userId)).toList();
+    }
+
     public List<Booking> findActiveByRoomType(String roomTypeId) {
         return bookings.values().stream()
                 .filter(b -> b.getRoomTypeId().equals(roomTypeId) && b.holdsRoom())

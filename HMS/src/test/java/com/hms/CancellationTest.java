@@ -87,7 +87,7 @@ class CancellationTest {
 
     @Test
     void cannotCancelOnceTheStayIsOver() {
-        Booking old = new Booking(hotel.getId(), hotel.getRoomTypes().get(0).getId(), "R", "r@x.com",
+        Booking old = new Booking(hotel.getId(), hotel.getRoomTypes().get(0).getId(), f.user.getId(),
                 new DateRange(TODAY.minusDays(5), TODAY.minusDays(2)), 2, new BigDecimal("100"));
         f.bookingRepository.save(old);
 

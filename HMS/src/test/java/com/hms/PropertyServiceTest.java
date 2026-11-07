@@ -19,7 +19,7 @@ class PropertyServiceTest {
 
     @Test
     void standaloneHostIsAnOwnerWithOneProperty() {
-        Owner owner = f.propertyService.registerOwner("Asha",
+        Owner owner = f.propertyService.registerOwner(f.newUser().getId(), "Asha",
                 List.of(hotel("Villa", "Goa", "Calangute", 3, Set.of(), room("Std", 2, 3, "2000"))));
 
         assertThat(f.propertyService.propertiesOf(owner.getId())).hasSize(1);
@@ -27,7 +27,7 @@ class PropertyServiceTest {
 
     @Test
     void chainOwnsManyPropertiesUnderOneAccountAndCanAddMore() {
-        Owner owner = f.propertyService.registerOwner("Taj", List.of(
+        Owner owner = f.propertyService.registerOwner(f.newUser().getId(), "Taj", List.of(
                 hotel("Taj Mumbai", "Mumbai", "Colaba", 5, Set.of(), room("Std", 2, 3, "9000")),
                 hotel("Taj Delhi", "Delhi", "Centre", 5, Set.of(), room("Std", 2, 3, "8000"))));
         f.propertyService.addProperty(owner.getId(), hotel("Taj Goa", "Goa", "Candolim", 5, Set.of(), room("Std", 2, 3, "7000")));
@@ -55,12 +55,23 @@ class PropertyServiceTest {
                 .isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> f.propertyService.addProperty(owner, hotel("V", "Goa", "x", 3, Set.of(), room("S", 0, 1, "100"))))
                 .isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> f.propertyService.registerOwner(" ", List.of())).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> f.propertyService.registerOwner(f.newUser().getId(), " ", List.of())).isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void ownerMustBeAnExistingUserAndEachUserIsOwnerOnce() {
+        assertThatThrownBy(() -> f.propertyService.registerOwner("ghost", "Asha", List.of()))
+                .isInstanceOf(ApiException.class).hasMessageContaining("User");
+
+        Owner owner = f.newOwner();
+        assertThat(f.propertyService.getOwner(owner.getId()).getUserId()).isNotBlank();
+        assertThatThrownBy(() -> f.propertyService.registerOwner(owner.getUserId(), "Second", List.of()))
+                .isInstanceOf(ApiException.class).hasMessageContaining("already an owner");
     }
 
     @Test
     void invalidPropertyInAChainSavesNothing() {
-        assertThatThrownBy(() -> f.propertyService.registerOwner("Chain", List.of(
+        assertThatThrownBy(() -> f.propertyService.registerOwner(f.newUser().getId(), "Chain", List.of(
                 hotel("Good", "Goa", "x", 3, Set.of(), room("S", 2, 1, "100")),
                 hotel("Bad", "Goa", "x", 9, Set.of(), room("S", 2, 1, "100")))))
                 .isInstanceOf(ApiException.class);

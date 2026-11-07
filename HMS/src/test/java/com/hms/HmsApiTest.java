@@ -38,17 +38,23 @@ class HmsApiTest {
 
     private JsonNode onboard(String city) throws Exception {
         return read(postJson("/api/owners", """
-                {"name":"Asha","properties":[{"name":"Sea View","city":"%s","locality":"Bandra","stars":4,
+                {"userId":"%s","name":"Asha","properties":[{"name":"Sea View","city":"%s","locality":"Bandra","stars":4,
                  "amenities":["wifi","pool"],
                  "roomTypes":[{"name":"Deluxe","capacity":2,"totalRooms":1,"pricePerNight":5000}]}]}
-                """.formatted(city)).andExpect(status().isCreated())).get("properties").get(0);
+                """.formatted(registerUser(), city)).andExpect(status().isCreated())).get("properties").get(0);
     }
 
-    private String bookingJson(JsonNode property) {
+    private String registerUser() throws Exception {
+        return read(postJson("/api/users", """
+                {"name":"Ravi","email":"ravi-%d@example.com"}
+                """.formatted(System.nanoTime())).andExpect(status().isCreated())).get("id").asText();
+    }
+
+    private String bookingJson(JsonNode property, String userId) {
         return """
                 {"propertyId":"%s","roomTypeId":"%s","checkIn":"%s","checkOut":"%s","guests":2,
-                 "guestName":"Ravi","guestEmail":"ravi@example.com"}
-                """.formatted(property.get("id").asText(), property.get("roomTypes").get(0).get("id").asText(), checkIn, checkOut);
+                 "userId":"%s"}
+                """.formatted(property.get("id").asText(), property.get("roomTypes").get(0).get("id").asText(), checkIn, checkOut, userId);
     }
 
     private ResultActions search(String city) throws Exception {
@@ -60,14 +66,15 @@ class HmsApiTest {
     void fullLifecycle() throws Exception {
         String city = "Lifecycle-" + System.nanoTime();
         JsonNode property = onboard(city);
+        String userId = registerUser();
 
         search(city).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].property.name").value("Sea View"))
                 .andExpect(jsonPath("$[0].rooms[0].totalPrice").value(10000.0));
 
-        String id = read(postJson("/api/bookings", bookingJson(property)).andExpect(status().isCreated())
+        String id = read(postJson("/api/bookings", bookingJson(property, userId)).andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING_PAYMENT"))).get("id").asText();
-        postJson("/api/bookings", bookingJson(property)).andExpect(status().isConflict());
+        postJson("/api/bookings", bookingJson(property, userId)).andExpect(status().isConflict());
         search(city).andExpect(jsonPath("$").isEmpty());
 
         postJson("/api/bookings/" + id + "/payment", "{\"method\":\"UPI\",\"details\":{\"vpa\":\"ravi@okbank\"}}")
@@ -79,6 +86,8 @@ class HmsApiTest {
                 .andExpect(jsonPath("$.status").value("CANCELLED")).andExpect(jsonPath("$.refundAmount").value(10000.0));
         postJson("/api/bookings/" + id + "/cancel", "").andExpect(status().isConflict());
 
+        mvc.perform(get("/api/users/" + userId + "/bookings")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id)).andExpect(jsonPath("$[0].status").value("CANCELLED"));
         search(city).andExpect(jsonPath("$[0].property.name").value("Sea View"));
     }
 
@@ -86,7 +95,7 @@ class HmsApiTest {
     void declinedPaymentReturns402AndFreesTheRoom() throws Exception {
         String city = "Declined-" + System.nanoTime();
         JsonNode property = onboard(city);
-        String id = read(postJson("/api/bookings", bookingJson(property)).andExpect(status().isCreated())).get("id").asText();
+        String id = read(postJson("/api/bookings", bookingJson(property, registerUser())).andExpect(status().isCreated())).get("id").asText();
 
         postJson("/api/bookings/" + id + "/payment", "{\"method\":\"CARD\",\"details\":{\"cardNumber\":\"4000000000000002\",\"cvv\":\"123\"}}")
                 .andExpect(status().isPaymentRequired()).andExpect(jsonPath("$.status").value("PAYMENT_FAILED"));
@@ -97,7 +106,13 @@ class HmsApiTest {
     @Test
     void errorsMapToSensibleStatuses() throws Exception {
         mvc.perform(get("/api/bookings/missing")).andExpect(status().isNotFound());
-        postJson("/api/owners", "{\"name\":\"\"}").andExpect(status().isBadRequest());
+        mvc.perform(get("/api/users/missing")).andExpect(status().isNotFound());
+        postJson("/api/users", "{\"name\":\"Ravi\",\"email\":\"bad\"}").andExpect(status().isBadRequest());
+        postJson("/api/owners", "{\"userId\":\"" + registerUser() + "\",\"name\":\"\"}").andExpect(status().isBadRequest());
+        postJson("/api/owners", "{\"userId\":\"missing\",\"name\":\"Asha\"}").andExpect(status().isNotFound());
+        String hostId = registerUser();
+        postJson("/api/owners", "{\"userId\":\"" + hostId + "\",\"name\":\"Asha\"}").andExpect(status().isCreated());
+        postJson("/api/owners", "{\"userId\":\"" + hostId + "\",\"name\":\"Again\"}").andExpect(status().isConflict());
         mvc.perform(get("/api/properties/search").param("city", "x")).andExpect(status().isBadRequest());
         mvc.perform(get("/api/properties/search").param("checkIn", checkIn.toString()).param("checkOut", checkOut.toString())
                 .param("minPrice", "abc")).andExpect(status().isBadRequest());

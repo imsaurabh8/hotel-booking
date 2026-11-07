@@ -14,18 +14,16 @@ public class BookingRequest {
     private final LocalDate checkIn;
     private final LocalDate checkOut;
     private final int guests;
-    private final String guestName;
-    private final String guestEmail;
+    private final String userId;
 
     public BookingRequest(String propertyId, String roomTypeId, LocalDate checkIn, LocalDate checkOut,
-                          int guests, String guestName, String guestEmail) {
+                          int guests, String userId) {
         this.propertyId = propertyId;
         this.roomTypeId = roomTypeId;
         this.checkIn = checkIn;
         this.checkOut = checkOut;
         this.guests = guests;
-        this.guestName = guestName;
-        this.guestEmail = guestEmail;
+        this.userId = userId;
     }
 
     public DateRange stay() {
@@ -37,8 +35,7 @@ public class BookingRequest {
     public LocalDate getCheckIn() { return checkIn; }
     public LocalDate getCheckOut() { return checkOut; }
     public int getGuests() { return guests; }
-    public String getGuestName() { return guestName; }
-    public String getGuestEmail() { return guestEmail; }
+    public String getUserId() { return userId; }
 
     /** Free rooms are the room type's total minus the bookings holding a room, counted night by night. */
     @Service

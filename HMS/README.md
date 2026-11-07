@@ -6,7 +6,7 @@ Data lives in memory behind repository interfaces; the payment provider is mocke
 ## Run
 
 ```bash
-mvn test                  # 45 tests (unit tests + one end-to-end HTTP test)
+mvn test                  # 49 tests (unit tests + one end-to-end HTTP test)
 mvn spring-boot:run       # http://localhost:8080
 ```
 
@@ -14,7 +14,9 @@ mvn spring-boot:run       # http://localhost:8080
 
 | Method | Path | What it does |
 |---|---|---|
-| POST | `/api/owners` | Register an owner, optionally with properties (one = standalone host, many = chain) |
+| POST | `/api/users` | Register a guest (name, unique email) |
+| GET | `/api/users/{id}`, `/api/users/{id}/bookings` | Read a guest, list their bookings |
+| POST | `/api/owners` | Make a user a host (`userId`, business `name`), optionally with properties (one = standalone host, many = chain) |
 | POST | `/api/owners/{id}/properties` | Add a property to an owner |
 | GET | `/api/owners/{id}`, `/api/properties/{id}` | Read |
 | GET | `/api/properties/search` | Search: `checkIn`, `checkOut`, `guests`, `city`, `locality`, `minPrice`, `maxPrice`, `amenities` (comma list), `minStars` |
@@ -25,14 +27,16 @@ mvn spring-boot:run       # http://localhost:8080
 
 ```bash
 curl -X POST localhost:8080/api/owners -H 'Content-Type: application/json' -d '{
-  "name":"Asha","properties":[{"name":"Sea View","city":"Mumbai","locality":"Bandra","stars":4,
+  "userId":"<user id>","name":"Asha Hotels","properties":[{"name":"Sea View","city":"Mumbai","locality":"Bandra","stars":4,
   "amenities":["wifi","pool"],"roomTypes":[{"name":"Deluxe","capacity":2,"totalRooms":2,"pricePerNight":5000}]}]}'
 
 curl 'localhost:8080/api/properties/search?city=Mumbai&checkIn=2026-12-01&checkOut=2026-12-03&guests=2&amenities=pool'
 
+curl -X POST localhost:8080/api/users -H 'Content-Type: application/json' -d '{"name":"Ravi","email":"ravi@example.com"}'
+
 curl -X POST localhost:8080/api/bookings -H 'Content-Type: application/json' -d '{
   "propertyId":"<id>","roomTypeId":"<id>","checkIn":"2026-12-01","checkOut":"2026-12-03",
-  "guests":2,"guestName":"Ravi","guestEmail":"ravi@example.com"}'
+  "guests":2,"userId":"<user id>"}'
 
 curl -X POST localhost:8080/api/bookings/<id>/payment -H 'Content-Type: application/json' \
   -d '{"method":"CARD","details":{"cardNumber":"4111111111111111","cvv":"123"}}'
@@ -47,9 +51,9 @@ Errors come back as 400 (bad input), 404 (unknown id) or 409 (sold out / wrong b
 ## Structure
 
 ```
-model/         Owner, Property, RoomType, Booking, BookingStatus
+model/         User, Owner, Property, RoomType, Booking, BookingStatus
 repository/    interfaces + in-memory implementations
-service/       PropertyService, BookingService, AvailabilityService
+service/       UserService, PropertyService, BookingService, AvailabilityService
 search/        SearchService + SearchFilter implementations
 payment/       PaymentMethod (card, UPI, wallet), PaymentGateway (mock provider), PaymentService
 cancellation/  CancellationPolicy + tiered implementation
@@ -58,6 +62,8 @@ controller/    REST endpoints
 
 ## Design decisions
 
+- **Owner is a host profile of a user:** `Owner` holds `userId` plus the business name, and a user can be an owner once (409 otherwise). Identity (name, email) lives only on `User`, so the same person can host and book.
+- **Users:** a `User` (name, unique email) is a real entity; a `Booking` stores only the `userId`, and booking with an unknown user is a 404. This gives "my bookings" without copying guest details onto every booking.
 - **Single property vs chain:** an `Owner` has any number of `Property`s. A standalone host is just an owner with one, so there is one code path.
 - **Availability:** a room type has `totalRooms`. Free rooms = total minus bookings that hold a room, counted night by night. Only `PENDING_PAYMENT` and `CONFIRMED` bookings hold a room, so a failed payment or a cancellation frees the room with no extra bookkeeping. Check-out day is free for the next guest.
 - **No double-booking:** the availability check and the save happen together inside a lock per room type.
@@ -77,7 +83,7 @@ controller/    REST endpoints
 - Stays are 1-30 nights, check-in not in the past. A single currency.
 - A failed payment is final; the guest books again.
 - Cancelling is refused after the stay is over.
-- Locks are per JVM, which is fine for in-memory storage. No auth (out of scope).
+- Locks are per JVM, which is fine for in-memory storage. No auth or passwords: a `User` is a profile, not a login (out of scope), so the caller supplies `userId` and nothing proves they are that user.
 
 ## With more time
 

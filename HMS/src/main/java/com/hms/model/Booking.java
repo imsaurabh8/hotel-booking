@@ -12,8 +12,7 @@ public class Booking {
     private final String id = UUID.randomUUID().toString();
     private final String propertyId;
     private final String roomTypeId;
-    private final String guestName;
-    private final String guestEmail;
+    private final String userId;
     private final DateRange stay;
     private final int guests;
     private final BigDecimal totalAmount;
@@ -23,12 +22,11 @@ public class Booking {
     private volatile String failureReason;
     private volatile BigDecimal refundAmount;
 
-    public Booking(String propertyId, String roomTypeId, String guestName, String guestEmail,
+    public Booking(String propertyId, String roomTypeId, String userId,
                    DateRange stay, int guests, BigDecimal totalAmount) {
         this.propertyId = propertyId;
         this.roomTypeId = roomTypeId;
-        this.guestName = guestName;
-        this.guestEmail = guestEmail;
+        this.userId = userId;
         this.stay = stay;
         this.guests = guests;
         this.totalAmount = totalAmount;
@@ -69,8 +67,7 @@ public class Booking {
     public String getId() { return id; }
     public String getPropertyId() { return propertyId; }
     public String getRoomTypeId() { return roomTypeId; }
-    public String getGuestName() { return guestName; }
-    public String getGuestEmail() { return guestEmail; }
+    public String getUserId() { return userId; }
     public DateRange getStay() { return stay; }
     public int getGuests() { return guests; }
     public BigDecimal getTotalAmount() { return totalAmount; }

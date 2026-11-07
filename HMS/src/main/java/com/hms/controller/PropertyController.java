@@ -28,14 +28,17 @@ public class PropertyController {
 
     public static class OwnerRequest {
 
+        private final String userId;
         private final String name;
         private final List<PropertyRequest> properties;
 
-        public OwnerRequest(String name, List<PropertyRequest> properties) {
+        public OwnerRequest(String userId, String name, List<PropertyRequest> properties) {
+            this.userId = userId;
             this.name = name;
             this.properties = properties;
         }
 
+        public String getUserId() { return userId; }
         public String getName() { return name; }
         public List<PropertyRequest> getProperties() { return properties; }
     }
@@ -66,7 +69,7 @@ public class PropertyController {
     @ResponseStatus(HttpStatus.CREATED)
     public OwnerResponse registerOwner(@RequestBody OwnerRequest request) {
         List<PropertyRequest> initial = request.getProperties() == null ? List.of() : request.getProperties();
-        Owner owner = propertyService.registerOwner(request.getName(), initial);
+        Owner owner = propertyService.registerOwner(request.getUserId(), request.getName(), initial);
         return new OwnerResponse(owner, propertyService.propertiesOf(owner.getId()));
     }
 

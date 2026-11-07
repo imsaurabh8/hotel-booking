@@ -34,7 +34,7 @@ class BookingServiceTest {
 
     private BookingRequest request(DateRange stay, int guests) {
         return new BookingRequest(hotel.getId(), hotel.getRoomTypes().get(0).getId(), stay.getCheckIn(), stay.getCheckOut(),
-                guests, "Ravi", "ravi@example.com");
+                guests, f.user.getId());
     }
 
     @Test
@@ -91,19 +91,17 @@ class BookingServiceTest {
 
     @Test
     void rejectsUnknownPropertyRoomAndBooking() {
-        assertThatThrownBy(() -> f.bookings.book(new BookingRequest("x", "y", TODAY, TODAY.plusDays(1), 1, "R", "r@x.com")))
+        assertThatThrownBy(() -> f.bookings.book(new BookingRequest("x", "y", TODAY, TODAY.plusDays(1), 1, f.user.getId())))
                 .isInstanceOf(ApiException.class).hasMessageContaining("not found");
-        assertThatThrownBy(() -> f.bookings.book(new BookingRequest(hotel.getId(), "y", TODAY, TODAY.plusDays(1), 1, "R", "r@x.com")))
+        assertThatThrownBy(() -> f.bookings.book(new BookingRequest(hotel.getId(), "y", TODAY, TODAY.plusDays(1), 1, f.user.getId())))
                 .isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> f.bookings.get("nope")).isInstanceOf(ApiException.class);
     }
 
     @Test
-    void rejectsMissingGuestDetails() {
+    void rejectsUnknownUser() {
         assertThatThrownBy(() -> f.bookings.book(new BookingRequest(hotel.getId(), hotel.getRoomTypes().get(0).getId(),
-                TODAY, TODAY.plusDays(1), 1, " ", "r@x.com"))).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> f.bookings.book(new BookingRequest(hotel.getId(), hotel.getRoomTypes().get(0).getId(),
-                TODAY, TODAY.plusDays(1), 1, "Ravi", "bad"))).isInstanceOf(ApiException.class);
+                TODAY, TODAY.plusDays(1), 1, "nobody"))).isInstanceOf(ApiException.class).hasMessageContaining("User");
     }
 
     @Test

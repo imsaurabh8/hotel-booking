@@ -20,4 +20,8 @@ public class InMemoryOwnerRepository implements OwnerRepository {
     public Optional<Owner> findById(String id) {
         return Optional.ofNullable(owners.get(id));
     }
+
+    public Optional<Owner> findByUserId(String userId) {
+        return owners.values().stream().filter(o -> o.getUserId().equals(userId)).findFirst();
+    }
 }

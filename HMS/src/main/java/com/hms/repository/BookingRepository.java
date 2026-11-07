@@ -15,6 +15,8 @@ public interface BookingRepository {
     /** Bookings of this room type that currently occupy a room. */
     List<Booking> findActiveByRoomType(String roomTypeId);
 
+    List<Booking> findByUserId(String userId);
+
     default Booking getOrThrow(String id) {
         return findById(id).orElseThrow(() -> ApiException.notFound("Booking", id));
     }
